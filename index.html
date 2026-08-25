@@ -1,0 +1,2907 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <link rel="stylesheet" href="css/leaflet.css">
+        <link rel="stylesheet" href="css/L.Control.Layers.Tree.css">
+        <link rel="stylesheet" href="css/L.Control.Locate.min.css">
+        <link rel="stylesheet" href="css/qgis2web.css">
+        <link rel="stylesheet" href="css/fontawesome-all.min.css">
+        <link rel="stylesheet" href="css/leaflet.photon.css">
+        <style>
+        html, body, #map {
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+        }
+        </style>
+        <title>Parc social et ségrégation résidentielle dans la métropole brestoise</title>
+    </head>
+    <body>
+        <div id="map">
+        </div>
+        <script src="js/qgis2web_expressions.js"></script>
+        <script src="js/leaflet.js"></script>
+        <script src="js/L.Control.Layers.Tree.min.js"></script>
+        <script src="js/L.Control.Locate.min.js"></script>
+        <script src="js/leaflet.rotatedMarker.js"></script>
+        <script src="js/leaflet.pattern.js"></script>
+        <script src="js/leaflet-hash.js"></script>
+        <script src="js/Autolinker.min.js"></script>
+        <script src="js/rbush.min.js"></script>
+        <script src="js/labelgun.min.js"></script>
+        <script src="js/labels.js"></script>
+        <script src="js/leaflet.photon.js"></script>
+        <script src="data/LISAManagerswithsocialhousing_4.js"></script>
+        <script src="data/LISAEmployeswithsocialhousing_5.js"></script>
+        <script src="data/LISAWorkerswithsocialhousing_6.js"></script>
+        <script src="data/LISAManagerswithoutsocialhousing_7.js"></script>
+        <script src="data/LISAEmployeswithoutsocialhousing_8.js"></script>
+        <script src="data/LISAWorkerswithoutsocialhousing_9.js"></script>
+        <script src="data/IrisBrestMetropole_10.js"></script>
+        <script src="data/LQManagerswithsocialhousing_11.js"></script>
+        <script src="data/LQEmployeswithsocialhousing_12.js"></script>
+        <script src="data/LQWorkerswithsocialhousing_13.js"></script>
+        <script src="data/LQManagerswithoutsocialhousing_14.js"></script>
+        <script src="data/LQEmployeswithoutsocialhousing_15.js"></script>
+        <script src="data/LQWorkerswithoutsocialhousing_16.js"></script>
+        <script src="data/ShareofsocialhousingbyIRISin2023_17.js"></script>
+        <script src="data/100mgridofsocialhousingstockbydominantfinancingtype2025_18.js"></script>
+        <script src="data/Locationofsocialhousing_19.js"></script>
+        <script src="data/Administrativeboundaries_20.js"></script>
+        <script src="data/QPV_21.js"></script>
+        <script>
+        var map = L.map('map', {
+            zoomControl:false, maxZoom:25, minZoom:10
+        }).fitBounds([[48.32185938343817,-4.684939099597386],[48.482227920387196,-4.233618977727156]]);
+        var hash = new L.Hash(map);
+        map.attributionControl.setPrefix('<a href="https://github.com/qgis2web/qgis2web" target="_blank">qgis2web</a> &middot; <a href="https://leafletjs.com" title="A JS library for interactive maps">Leaflet</a> &middot; <a href="https://qgis.org">QGIS</a>');
+        var autolinker = new Autolinker({truncate: {length: 30, location: 'smart'}});
+        // remove popup's row if "visible-with-data"
+        function removeEmptyRowsFromPopupContent(content, feature) {
+         var tempDiv = document.createElement('div');
+         tempDiv.innerHTML = content;
+         var rows = tempDiv.querySelectorAll('tr');
+         for (var i = 0; i < rows.length; i++) {
+             var td = rows[i].querySelector('td.visible-with-data');
+             var key = td ? td.id : '';
+             if (td && td.classList.contains('visible-with-data') && feature.properties[key] == null) {
+                 rows[i].parentNode.removeChild(rows[i]);
+             }
+         }
+         return tempDiv.innerHTML;
+        }
+        // modify popup if contains media
+        function addClassToPopupIfMedia(content, popup) {
+            var tempDiv = document.createElement('div');
+            tempDiv.innerHTML = content;
+            var imgTd = tempDiv.querySelector('td img');
+            if (imgTd) {
+                var src = imgTd.getAttribute('src');
+                if (/\.(jpg|jpeg|png|gif|bmp|webp|avif)$/i.test(src)) {
+                    popup._contentNode.classList.add('media');
+                    var img = popup._contentNode.querySelector('td img');
+                    if (img) {
+                        // If already loaded (cache), update immediately
+                        if (img.complete && img.naturalHeight > 0) {
+                            popup.update();
+                        } else {
+                            img.addEventListener('load', function() {
+                                popup.update();
+                            });
+                            img.addEventListener('error', function() {
+                                popup.update();
+                            });
+                        }
+                    }
+                } else if (/\.(mp3|wav|ogg|aac)$/i.test(src)) {
+                    var audio = document.createElement('audio');
+                    audio.controls = true;
+                    audio.src = src;
+                    imgTd.parentNode.replaceChild(audio, imgTd);
+                    popup._contentNode.classList.add('media');
+                    setTimeout(function() {
+                        popup.setContent(tempDiv.innerHTML);
+                        popup.update();
+                    }, 10);
+                } else if (/\.(mp4|webm|ogg|mov)$/i.test(src)) {
+                    var video = document.createElement('video');
+                    video.controls = true;
+                    video.src = src;
+                    video.style.width = "400px";
+                    video.style.height = "300px";
+                    video.style.maxHeight = "60vh";
+                    video.style.maxWidth = "60vw";
+                    imgTd.parentNode.replaceChild(video, imgTd);
+                    popup._contentNode.classList.add('media');
+                    // Aggiorna il popup quando il video carica i metadati
+                    video.addEventListener('loadedmetadata', function() {
+                        popup.update();
+                    });
+                    setTimeout(function() {
+                        popup.setContent(tempDiv.innerHTML);
+                        popup.update();
+                    }, 10);
+                } else {
+                    popup._contentNode.classList.remove('media');
+                }
+            } else {
+                popup._contentNode.classList.remove('media');
+            }
+        }
+        var title = new L.Control({'position':'topleft'});
+        title.onAdd = function (map) {
+            this._div = L.DomUtil.create('div', 'info');
+            this.update();
+            return this._div;
+        };
+        title.update = function () {
+            this._div.innerHTML = '<h2>Parc social et ségrégation résidentielle dans la métropole brestoise</h2>';
+        };
+        title.addTo(map);
+        var zoomControl = L.control.zoom({
+            position: 'topleft'
+        }).addTo(map);
+        L.control.locate({locateOptions: {maxZoom: 19}}).addTo(map);
+        var bounds_group = new L.featureGroup([]);
+        function setBounds() {
+        }
+        map.createPane('pane_ESRIGraylight_0');
+        map.getPane('pane_ESRIGraylight_0').style.zIndex = 400;
+        var layer_ESRIGraylight_0 = L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+            pane: 'pane_ESRIGraylight_0',
+            opacity: 1.0,
+            attribution: '',
+            minZoom: 10,
+            maxZoom: 25,
+            minNativeZoom: 0,
+            maxNativeZoom: 20
+        });
+        layer_ESRIGraylight_0;
+        map.addLayer(layer_ESRIGraylight_0);
+        map.createPane('pane_ESRIGraydark_1');
+        map.getPane('pane_ESRIGraydark_1').style.zIndex = 401;
+        var layer_ESRIGraydark_1 = L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+            pane: 'pane_ESRIGraydark_1',
+            opacity: 1.0,
+            attribution: '',
+            minZoom: 10,
+            maxZoom: 25,
+            minNativeZoom: 0,
+            maxNativeZoom: 20
+        });
+        layer_ESRIGraydark_1;
+        map.addLayer(layer_ESRIGraydark_1);
+        map.createPane('pane_OSMStandard_2');
+        map.getPane('pane_OSMStandard_2').style.zIndex = 402;
+        var layer_OSMStandard_2 = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            pane: 'pane_OSMStandard_2',
+            opacity: 1.0,
+            attribution: '<a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors, CC-BY-SA</a>',
+            minZoom: 10,
+            maxZoom: 25,
+            minNativeZoom: 0,
+            maxNativeZoom: 19
+        });
+        layer_OSMStandard_2;
+        map.addLayer(layer_OSMStandard_2);
+        map.createPane('pane_GoogleSatellite_3');
+        map.getPane('pane_GoogleSatellite_3').style.zIndex = 403;
+        var layer_GoogleSatellite_3 = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+            pane: 'pane_GoogleSatellite_3',
+            opacity: 1.0,
+            attribution: '<a href="https://www.google.at/permissions/geoguidelines/attr-guide.html">Map data ©2015 Google</a>',
+            minZoom: 10,
+            maxZoom: 25,
+            minNativeZoom: 0,
+            maxNativeZoom: 20
+        });
+        layer_GoogleSatellite_3;
+        map.addLayer(layer_GoogleSatellite_3);
+        function pop_LISAManagerswithsocialhousing_4(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DEPCO'] !== null ? autolinker.link(String(feature.properties['DEPCO']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['IIRIS'] !== null ? autolinker.link(String(feature.properties['IIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NIRIS'] !== null ? autolinker.link(String(feature.properties['NIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DESIG'] !== null ? autolinker.link(String(feature.properties['DESIG']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['QVI31'] !== null ? autolinker.link(String(feature.properties['QVI31']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['IVIL31'] !== null ? autolinker.link(String(feature.properties['IVIL31']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DCOMIRIS'] !== null ? autolinker.link(String(feature.properties['DCOMIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NQELU'] !== null ? autolinker.link(String(feature.properties['NQELU']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SURFA_KM2'] !== null ? autolinker.link(String(feature.properties['SURFA_KM2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DENSIT_KM2'] !== null ? autolinker.link(String(feature.properties['DENSIT_KM2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NB_ILOTS'] !== null ? autolinker.link(String(feature.properties['NB_ILOTS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['TRIRIS'] !== null ? autolinker.link(String(feature.properties['TRIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SHAPE_AREA'] !== null ? autolinker.link(String(feature.properties['SHAPE_AREA']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SHAPE_LEN'] !== null ? autolinker.link(String(feature.properties['SHAPE_LEN']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA avec'] !== null ? autolinker.link(String(feature.properties['LISA avec']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA ave_1'] !== null ? autolinker.link(String(feature.properties['LISA ave_1']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA ave_2'] !== null ? autolinker.link(String(feature.properties['LISA ave_2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA ave_3'] !== null ? autolinker.link(String(feature.properties['LISA ave_3']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA ave_4'] !== null ? autolinker.link(String(feature.properties['LISA ave_4']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA ave_5'] !== null ? autolinker.link(String(feature.properties['LISA ave_5']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA ave_6'] !== null ? autolinker.link(String(feature.properties['LISA ave_6']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA ave_7'] !== null ? autolinker.link(String(feature.properties['LISA ave_7']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA ave_8'] !== null ? autolinker.link(String(feature.properties['LISA ave_8']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA ave_9'] !== null ? autolinker.link(String(feature.properties['LISA ave_9']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_LISAManagerswithsocialhousing_4_0(feature) {
+            switch(String(feature.properties['LISA ave_1'])) {
+                case 'High-High':
+                    return {
+                pane: 'pane_LISAManagerswithsocialhousing_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(227,26,28,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'High-Low':
+                    return {
+                pane: 'pane_LISAManagerswithsocialhousing_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,127,0,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Insignificant':
+                    return {
+                pane: 'pane_LISAManagerswithsocialhousing_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(217,217,217,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Low-High':
+                    return {
+                pane: 'pane_LISAManagerswithsocialhousing_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(166,206,227,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Low-Low':
+                    return {
+                pane: 'pane_LISAManagerswithsocialhousing_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(31,120,180,1.0)',
+                interactive: true,
+            }
+                    break;
+                default:
+                    return {
+                pane: 'pane_LISAManagerswithsocialhousing_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,255,255,1.0)',
+                interactive: true,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_LISAManagerswithsocialhousing_4');
+        map.getPane('pane_LISAManagerswithsocialhousing_4').style.zIndex = 404;
+        map.getPane('pane_LISAManagerswithsocialhousing_4').style['mix-blend-mode'] = 'normal';
+        var layer_LISAManagerswithsocialhousing_4 = new L.geoJson(json_LISAManagerswithsocialhousing_4, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_LISAManagerswithsocialhousing_4',
+            layerName: 'layer_LISAManagerswithsocialhousing_4',
+            pane: 'pane_LISAManagerswithsocialhousing_4',
+            onEachFeature: pop_LISAManagerswithsocialhousing_4,
+            style: style_LISAManagerswithsocialhousing_4_0,
+        });
+        bounds_group.addLayer(layer_LISAManagerswithsocialhousing_4);
+        map.addLayer(layer_LISAManagerswithsocialhousing_4);
+        function pop_LISAEmployeswithsocialhousing_5(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DEPCO'] !== null ? autolinker.link(String(feature.properties['DEPCO']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['IIRIS'] !== null ? autolinker.link(String(feature.properties['IIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NIRIS'] !== null ? autolinker.link(String(feature.properties['NIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DESIG'] !== null ? autolinker.link(String(feature.properties['DESIG']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['QVI31'] !== null ? autolinker.link(String(feature.properties['QVI31']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['IVIL31'] !== null ? autolinker.link(String(feature.properties['IVIL31']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DCOMIRIS'] !== null ? autolinker.link(String(feature.properties['DCOMIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NQELU'] !== null ? autolinker.link(String(feature.properties['NQELU']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SURFA_KM2'] !== null ? autolinker.link(String(feature.properties['SURFA_KM2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DENSIT_KM2'] !== null ? autolinker.link(String(feature.properties['DENSIT_KM2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NB_ILOTS'] !== null ? autolinker.link(String(feature.properties['NB_ILOTS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['TRIRIS'] !== null ? autolinker.link(String(feature.properties['TRIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SHAPE_AREA'] !== null ? autolinker.link(String(feature.properties['SHAPE_AREA']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SHAPE_LEN'] !== null ? autolinker.link(String(feature.properties['SHAPE_LEN']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA avec'] !== null ? autolinker.link(String(feature.properties['LISA avec']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA ave_1'] !== null ? autolinker.link(String(feature.properties['LISA ave_1']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA ave_2'] !== null ? autolinker.link(String(feature.properties['LISA ave_2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA ave_3'] !== null ? autolinker.link(String(feature.properties['LISA ave_3']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA ave_4'] !== null ? autolinker.link(String(feature.properties['LISA ave_4']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA ave_5'] !== null ? autolinker.link(String(feature.properties['LISA ave_5']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA ave_6'] !== null ? autolinker.link(String(feature.properties['LISA ave_6']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA ave_7'] !== null ? autolinker.link(String(feature.properties['LISA ave_7']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA ave_8'] !== null ? autolinker.link(String(feature.properties['LISA ave_8']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA ave_9'] !== null ? autolinker.link(String(feature.properties['LISA ave_9']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_LISAEmployeswithsocialhousing_5_0(feature) {
+            switch(String(feature.properties['LISA ave_4'])) {
+                case 'High-High':
+                    return {
+                pane: 'pane_LISAEmployeswithsocialhousing_5',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(227,26,28,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'High-Low':
+                    return {
+                pane: 'pane_LISAEmployeswithsocialhousing_5',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,127,0,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Insignificant':
+                    return {
+                pane: 'pane_LISAEmployeswithsocialhousing_5',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(217,217,217,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Low-Low':
+                    return {
+                pane: 'pane_LISAEmployeswithsocialhousing_5',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(31,120,180,1.0)',
+                interactive: true,
+            }
+                    break;
+                default:
+                    return {
+                pane: 'pane_LISAEmployeswithsocialhousing_5',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,255,255,1.0)',
+                interactive: true,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_LISAEmployeswithsocialhousing_5');
+        map.getPane('pane_LISAEmployeswithsocialhousing_5').style.zIndex = 405;
+        map.getPane('pane_LISAEmployeswithsocialhousing_5').style['mix-blend-mode'] = 'normal';
+        var layer_LISAEmployeswithsocialhousing_5 = new L.geoJson(json_LISAEmployeswithsocialhousing_5, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_LISAEmployeswithsocialhousing_5',
+            layerName: 'layer_LISAEmployeswithsocialhousing_5',
+            pane: 'pane_LISAEmployeswithsocialhousing_5',
+            onEachFeature: pop_LISAEmployeswithsocialhousing_5,
+            style: style_LISAEmployeswithsocialhousing_5_0,
+        });
+        bounds_group.addLayer(layer_LISAEmployeswithsocialhousing_5);
+        map.addLayer(layer_LISAEmployeswithsocialhousing_5);
+        function pop_LISAWorkerswithsocialhousing_6(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DEPCO'] !== null ? autolinker.link(String(feature.properties['DEPCO']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['IIRIS'] !== null ? autolinker.link(String(feature.properties['IIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NIRIS'] !== null ? autolinker.link(String(feature.properties['NIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DESIG'] !== null ? autolinker.link(String(feature.properties['DESIG']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['QVI31'] !== null ? autolinker.link(String(feature.properties['QVI31']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['IVIL31'] !== null ? autolinker.link(String(feature.properties['IVIL31']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DCOMIRIS'] !== null ? autolinker.link(String(feature.properties['DCOMIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NQELU'] !== null ? autolinker.link(String(feature.properties['NQELU']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SURFA_KM2'] !== null ? autolinker.link(String(feature.properties['SURFA_KM2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DENSIT_KM2'] !== null ? autolinker.link(String(feature.properties['DENSIT_KM2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NB_ILOTS'] !== null ? autolinker.link(String(feature.properties['NB_ILOTS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['TRIRIS'] !== null ? autolinker.link(String(feature.properties['TRIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SHAPE_AREA'] !== null ? autolinker.link(String(feature.properties['SHAPE_AREA']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SHAPE_LEN'] !== null ? autolinker.link(String(feature.properties['SHAPE_LEN']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA avec'] !== null ? autolinker.link(String(feature.properties['LISA avec']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA ave_1'] !== null ? autolinker.link(String(feature.properties['LISA ave_1']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA ave_2'] !== null ? autolinker.link(String(feature.properties['LISA ave_2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA ave_3'] !== null ? autolinker.link(String(feature.properties['LISA ave_3']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA ave_4'] !== null ? autolinker.link(String(feature.properties['LISA ave_4']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA ave_5'] !== null ? autolinker.link(String(feature.properties['LISA ave_5']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA ave_6'] !== null ? autolinker.link(String(feature.properties['LISA ave_6']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA ave_7'] !== null ? autolinker.link(String(feature.properties['LISA ave_7']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA ave_8'] !== null ? autolinker.link(String(feature.properties['LISA ave_8']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA ave_9'] !== null ? autolinker.link(String(feature.properties['LISA ave_9']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_LISAWorkerswithsocialhousing_6_0(feature) {
+            switch(String(feature.properties['LISA ave_7'])) {
+                case 'High-High':
+                    return {
+                pane: 'pane_LISAWorkerswithsocialhousing_6',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(227,26,28,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Insignificant':
+                    return {
+                pane: 'pane_LISAWorkerswithsocialhousing_6',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(217,217,217,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Low-High':
+                    return {
+                pane: 'pane_LISAWorkerswithsocialhousing_6',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(166,206,227,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Low-Low':
+                    return {
+                pane: 'pane_LISAWorkerswithsocialhousing_6',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(31,120,180,1.0)',
+                interactive: true,
+            }
+                    break;
+                default:
+                    return {
+                pane: 'pane_LISAWorkerswithsocialhousing_6',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,255,255,1.0)',
+                interactive: true,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_LISAWorkerswithsocialhousing_6');
+        map.getPane('pane_LISAWorkerswithsocialhousing_6').style.zIndex = 406;
+        map.getPane('pane_LISAWorkerswithsocialhousing_6').style['mix-blend-mode'] = 'normal';
+        var layer_LISAWorkerswithsocialhousing_6 = new L.geoJson(json_LISAWorkerswithsocialhousing_6, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_LISAWorkerswithsocialhousing_6',
+            layerName: 'layer_LISAWorkerswithsocialhousing_6',
+            pane: 'pane_LISAWorkerswithsocialhousing_6',
+            onEachFeature: pop_LISAWorkerswithsocialhousing_6,
+            style: style_LISAWorkerswithsocialhousing_6_0,
+        });
+        bounds_group.addLayer(layer_LISAWorkerswithsocialhousing_6);
+        map.addLayer(layer_LISAWorkerswithsocialhousing_6);
+        function pop_LISAManagerswithoutsocialhousing_7(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DEPCO'] !== null ? autolinker.link(String(feature.properties['DEPCO']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['IIRIS'] !== null ? autolinker.link(String(feature.properties['IIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NIRIS'] !== null ? autolinker.link(String(feature.properties['NIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DESIG'] !== null ? autolinker.link(String(feature.properties['DESIG']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['QVI31'] !== null ? autolinker.link(String(feature.properties['QVI31']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['IVIL31'] !== null ? autolinker.link(String(feature.properties['IVIL31']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DCOMIRIS'] !== null ? autolinker.link(String(feature.properties['DCOMIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NQELU'] !== null ? autolinker.link(String(feature.properties['NQELU']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SURFA_KM2'] !== null ? autolinker.link(String(feature.properties['SURFA_KM2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DENSIT_KM2'] !== null ? autolinker.link(String(feature.properties['DENSIT_KM2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NB_ILOTS'] !== null ? autolinker.link(String(feature.properties['NB_ILOTS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['TRIRIS'] !== null ? autolinker.link(String(feature.properties['TRIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SHAPE_AREA'] !== null ? autolinker.link(String(feature.properties['SHAPE_AREA']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SHAPE_LEN'] !== null ? autolinker.link(String(feature.properties['SHAPE_LEN']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA sans'] !== null ? autolinker.link(String(feature.properties['LISA sans']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA san_1'] !== null ? autolinker.link(String(feature.properties['LISA san_1']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA san_2'] !== null ? autolinker.link(String(feature.properties['LISA san_2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA san_3'] !== null ? autolinker.link(String(feature.properties['LISA san_3']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA san_4'] !== null ? autolinker.link(String(feature.properties['LISA san_4']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA san_5'] !== null ? autolinker.link(String(feature.properties['LISA san_5']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA san_6'] !== null ? autolinker.link(String(feature.properties['LISA san_6']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA san_7'] !== null ? autolinker.link(String(feature.properties['LISA san_7']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA san_8'] !== null ? autolinker.link(String(feature.properties['LISA san_8']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA san_9'] !== null ? autolinker.link(String(feature.properties['LISA san_9']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_LISAManagerswithoutsocialhousing_7_0(feature) {
+            switch(String(feature.properties['LISA san_1'])) {
+                case 'High-High':
+                    return {
+                pane: 'pane_LISAManagerswithoutsocialhousing_7',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(227,26,28,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'High-Low':
+                    return {
+                pane: 'pane_LISAManagerswithoutsocialhousing_7',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,127,0,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Insignificant':
+                    return {
+                pane: 'pane_LISAManagerswithoutsocialhousing_7',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(217,217,217,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Low-High':
+                    return {
+                pane: 'pane_LISAManagerswithoutsocialhousing_7',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(166,206,227,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Low-Low':
+                    return {
+                pane: 'pane_LISAManagerswithoutsocialhousing_7',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(31,120,180,1.0)',
+                interactive: true,
+            }
+                    break;
+                default:
+                    return {
+                pane: 'pane_LISAManagerswithoutsocialhousing_7',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,255,255,1.0)',
+                interactive: true,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_LISAManagerswithoutsocialhousing_7');
+        map.getPane('pane_LISAManagerswithoutsocialhousing_7').style.zIndex = 407;
+        map.getPane('pane_LISAManagerswithoutsocialhousing_7').style['mix-blend-mode'] = 'normal';
+        var layer_LISAManagerswithoutsocialhousing_7 = new L.geoJson(json_LISAManagerswithoutsocialhousing_7, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_LISAManagerswithoutsocialhousing_7',
+            layerName: 'layer_LISAManagerswithoutsocialhousing_7',
+            pane: 'pane_LISAManagerswithoutsocialhousing_7',
+            onEachFeature: pop_LISAManagerswithoutsocialhousing_7,
+            style: style_LISAManagerswithoutsocialhousing_7_0,
+        });
+        bounds_group.addLayer(layer_LISAManagerswithoutsocialhousing_7);
+        map.addLayer(layer_LISAManagerswithoutsocialhousing_7);
+        function pop_LISAEmployeswithoutsocialhousing_8(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DEPCO'] !== null ? autolinker.link(String(feature.properties['DEPCO']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['IIRIS'] !== null ? autolinker.link(String(feature.properties['IIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NIRIS'] !== null ? autolinker.link(String(feature.properties['NIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DESIG'] !== null ? autolinker.link(String(feature.properties['DESIG']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['QVI31'] !== null ? autolinker.link(String(feature.properties['QVI31']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['IVIL31'] !== null ? autolinker.link(String(feature.properties['IVIL31']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DCOMIRIS'] !== null ? autolinker.link(String(feature.properties['DCOMIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NQELU'] !== null ? autolinker.link(String(feature.properties['NQELU']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SURFA_KM2'] !== null ? autolinker.link(String(feature.properties['SURFA_KM2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DENSIT_KM2'] !== null ? autolinker.link(String(feature.properties['DENSIT_KM2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NB_ILOTS'] !== null ? autolinker.link(String(feature.properties['NB_ILOTS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['TRIRIS'] !== null ? autolinker.link(String(feature.properties['TRIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SHAPE_AREA'] !== null ? autolinker.link(String(feature.properties['SHAPE_AREA']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SHAPE_LEN'] !== null ? autolinker.link(String(feature.properties['SHAPE_LEN']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA sans'] !== null ? autolinker.link(String(feature.properties['LISA sans']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA san_1'] !== null ? autolinker.link(String(feature.properties['LISA san_1']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA san_2'] !== null ? autolinker.link(String(feature.properties['LISA san_2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA san_3'] !== null ? autolinker.link(String(feature.properties['LISA san_3']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA san_4'] !== null ? autolinker.link(String(feature.properties['LISA san_4']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA san_5'] !== null ? autolinker.link(String(feature.properties['LISA san_5']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA san_6'] !== null ? autolinker.link(String(feature.properties['LISA san_6']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA san_7'] !== null ? autolinker.link(String(feature.properties['LISA san_7']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA san_8'] !== null ? autolinker.link(String(feature.properties['LISA san_8']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA san_9'] !== null ? autolinker.link(String(feature.properties['LISA san_9']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_LISAEmployeswithoutsocialhousing_8_0(feature) {
+            switch(String(feature.properties['LISA san_4'])) {
+                case 'High-High':
+                    return {
+                pane: 'pane_LISAEmployeswithoutsocialhousing_8',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(228,26,28,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'High-Low':
+                    return {
+                pane: 'pane_LISAEmployeswithoutsocialhousing_8',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,127,0,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Insignificant':
+                    return {
+                pane: 'pane_LISAEmployeswithoutsocialhousing_8',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(217,217,217,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Low-Low':
+                    return {
+                pane: 'pane_LISAEmployeswithoutsocialhousing_8',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(31,120,180,1.0)',
+                interactive: true,
+            }
+                    break;
+                default:
+                    return {
+                pane: 'pane_LISAEmployeswithoutsocialhousing_8',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,255,255,1.0)',
+                interactive: true,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_LISAEmployeswithoutsocialhousing_8');
+        map.getPane('pane_LISAEmployeswithoutsocialhousing_8').style.zIndex = 408;
+        map.getPane('pane_LISAEmployeswithoutsocialhousing_8').style['mix-blend-mode'] = 'normal';
+        var layer_LISAEmployeswithoutsocialhousing_8 = new L.geoJson(json_LISAEmployeswithoutsocialhousing_8, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_LISAEmployeswithoutsocialhousing_8',
+            layerName: 'layer_LISAEmployeswithoutsocialhousing_8',
+            pane: 'pane_LISAEmployeswithoutsocialhousing_8',
+            onEachFeature: pop_LISAEmployeswithoutsocialhousing_8,
+            style: style_LISAEmployeswithoutsocialhousing_8_0,
+        });
+        bounds_group.addLayer(layer_LISAEmployeswithoutsocialhousing_8);
+        map.addLayer(layer_LISAEmployeswithoutsocialhousing_8);
+        function pop_LISAWorkerswithoutsocialhousing_9(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DEPCO'] !== null ? autolinker.link(String(feature.properties['DEPCO']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['IIRIS'] !== null ? autolinker.link(String(feature.properties['IIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NIRIS'] !== null ? autolinker.link(String(feature.properties['NIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DESIG'] !== null ? autolinker.link(String(feature.properties['DESIG']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['QVI31'] !== null ? autolinker.link(String(feature.properties['QVI31']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['IVIL31'] !== null ? autolinker.link(String(feature.properties['IVIL31']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DCOMIRIS'] !== null ? autolinker.link(String(feature.properties['DCOMIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NQELU'] !== null ? autolinker.link(String(feature.properties['NQELU']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SURFA_KM2'] !== null ? autolinker.link(String(feature.properties['SURFA_KM2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DENSIT_KM2'] !== null ? autolinker.link(String(feature.properties['DENSIT_KM2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NB_ILOTS'] !== null ? autolinker.link(String(feature.properties['NB_ILOTS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['TRIRIS'] !== null ? autolinker.link(String(feature.properties['TRIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SHAPE_AREA'] !== null ? autolinker.link(String(feature.properties['SHAPE_AREA']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SHAPE_LEN'] !== null ? autolinker.link(String(feature.properties['SHAPE_LEN']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA sans'] !== null ? autolinker.link(String(feature.properties['LISA sans']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA san_1'] !== null ? autolinker.link(String(feature.properties['LISA san_1']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA san_2'] !== null ? autolinker.link(String(feature.properties['LISA san_2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA san_3'] !== null ? autolinker.link(String(feature.properties['LISA san_3']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA san_4'] !== null ? autolinker.link(String(feature.properties['LISA san_4']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA san_5'] !== null ? autolinker.link(String(feature.properties['LISA san_5']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA san_6'] !== null ? autolinker.link(String(feature.properties['LISA san_6']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA san_7'] !== null ? autolinker.link(String(feature.properties['LISA san_7']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA san_8'] !== null ? autolinker.link(String(feature.properties['LISA san_8']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LISA san_9'] !== null ? autolinker.link(String(feature.properties['LISA san_9']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_LISAWorkerswithoutsocialhousing_9_0(feature) {
+            switch(String(feature.properties['LISA san_7'])) {
+                case 'High-High':
+                    return {
+                pane: 'pane_LISAWorkerswithoutsocialhousing_9',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(228,26,28,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Low-High':
+                    return {
+                pane: 'pane_LISAWorkerswithoutsocialhousing_9',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(119,213,232,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Low-Low':
+                    return {
+                pane: 'pane_LISAWorkerswithoutsocialhousing_9',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(31,120,180,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Insignificant':
+                    return {
+                pane: 'pane_LISAWorkerswithoutsocialhousing_9',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(217,217,217,1.0)',
+                interactive: true,
+            }
+                    break;
+                default:
+                    return {
+                pane: 'pane_LISAWorkerswithoutsocialhousing_9',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,255,255,1.0)',
+                interactive: true,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_LISAWorkerswithoutsocialhousing_9');
+        map.getPane('pane_LISAWorkerswithoutsocialhousing_9').style.zIndex = 409;
+        map.getPane('pane_LISAWorkerswithoutsocialhousing_9').style['mix-blend-mode'] = 'normal';
+        var layer_LISAWorkerswithoutsocialhousing_9 = new L.geoJson(json_LISAWorkerswithoutsocialhousing_9, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_LISAWorkerswithoutsocialhousing_9',
+            layerName: 'layer_LISAWorkerswithoutsocialhousing_9',
+            pane: 'pane_LISAWorkerswithoutsocialhousing_9',
+            onEachFeature: pop_LISAWorkerswithoutsocialhousing_9,
+            style: style_LISAWorkerswithoutsocialhousing_9_0,
+        });
+        bounds_group.addLayer(layer_LISAWorkerswithoutsocialhousing_9);
+        map.addLayer(layer_LISAWorkerswithoutsocialhousing_9);
+        function pop_IrisBrestMetropole_10(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DEPCO'] !== null ? autolinker.link(String(feature.properties['DEPCO']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['IIRIS'] !== null ? autolinker.link(String(feature.properties['IIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NIRIS'] !== null ? autolinker.link(String(feature.properties['NIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2"><strong>DESIG</strong><br />' + (feature.properties['DESIG'] !== null ? autolinker.link(String(feature.properties['DESIG']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['QVI31'] !== null ? autolinker.link(String(feature.properties['QVI31']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['IVIL31'] !== null ? autolinker.link(String(feature.properties['IVIL31']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DCOMIRIS'] !== null ? autolinker.link(String(feature.properties['DCOMIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NQELU'] !== null ? autolinker.link(String(feature.properties['NQELU']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SURFA_KM2'] !== null ? autolinker.link(String(feature.properties['SURFA_KM2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DENSIT_KM2'] !== null ? autolinker.link(String(feature.properties['DENSIT_KM2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NB_ILOTS'] !== null ? autolinker.link(String(feature.properties['NB_ILOTS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['TRIRIS'] !== null ? autolinker.link(String(feature.properties['TRIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SHAPE_AREA'] !== null ? autolinker.link(String(feature.properties['SHAPE_AREA']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SHAPE_LEN'] !== null ? autolinker.link(String(feature.properties['SHAPE_LEN']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_IrisBrestMetropole_10_0() {
+            return {
+                pane: 'pane_IrisBrestMetropole_10',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(217,217,217,1.0)',
+                interactive: true,
+            }
+        }
+        map.createPane('pane_IrisBrestMetropole_10');
+        map.getPane('pane_IrisBrestMetropole_10').style.zIndex = 410;
+        map.getPane('pane_IrisBrestMetropole_10').style['mix-blend-mode'] = 'normal';
+        var layer_IrisBrestMetropole_10 = new L.geoJson(json_IrisBrestMetropole_10, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_IrisBrestMetropole_10',
+            layerName: 'layer_IrisBrestMetropole_10',
+            pane: 'pane_IrisBrestMetropole_10',
+            onEachFeature: pop_IrisBrestMetropole_10,
+            style: style_IrisBrestMetropole_10_0,
+        });
+        bounds_group.addLayer(layer_IrisBrestMetropole_10);
+        map.addLayer(layer_IrisBrestMetropole_10);
+        function pop_LQManagerswithsocialhousing_11(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DEPCO'] !== null ? autolinker.link(String(feature.properties['DEPCO']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['IIRIS'] !== null ? autolinker.link(String(feature.properties['IIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NIRIS'] !== null ? autolinker.link(String(feature.properties['NIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DESIG'] !== null ? autolinker.link(String(feature.properties['DESIG']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['QVI31'] !== null ? autolinker.link(String(feature.properties['QVI31']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['IVIL31'] !== null ? autolinker.link(String(feature.properties['IVIL31']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DCOMIRIS'] !== null ? autolinker.link(String(feature.properties['DCOMIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NQELU'] !== null ? autolinker.link(String(feature.properties['NQELU']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SURFA_KM2'] !== null ? autolinker.link(String(feature.properties['SURFA_KM2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DENSIT_KM2'] !== null ? autolinker.link(String(feature.properties['DENSIT_KM2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NB_ILOTS'] !== null ? autolinker.link(String(feature.properties['NB_ILOTS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['TRIRIS'] !== null ? autolinker.link(String(feature.properties['TRIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SHAPE_AREA'] !== null ? autolinker.link(String(feature.properties['SHAPE_AREA']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SHAPE_LEN'] !== null ? autolinker.link(String(feature.properties['SHAPE_LEN']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LQ_avec_HL'] !== null ? autolinker.link(String(feature.properties['LQ_avec_HL']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LQ_avec__1'] !== null ? autolinker.link(String(feature.properties['LQ_avec__1']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LQ_avec__2'] !== null ? autolinker.link(String(feature.properties['LQ_avec__2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LQ_avec__3'] !== null ? autolinker.link(String(feature.properties['LQ_avec__3']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_LQManagerswithsocialhousing_11_0(feature) {
+            if (feature.properties['LQ_avec__1'] >= 0.060000 && feature.properties['LQ_avec__1'] <= 0.500000 ) {
+                return {
+                pane: 'pane_LQManagerswithsocialhousing_11',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(5,113,176,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['LQ_avec__1'] >= 0.500000 && feature.properties['LQ_avec__1'] <= 0.900000 ) {
+                return {
+                pane: 'pane_LQManagerswithsocialhousing_11',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(146,197,222,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['LQ_avec__1'] >= 0.900000 && feature.properties['LQ_avec__1'] <= 1.100000 ) {
+                return {
+                pane: 'pane_LQManagerswithsocialhousing_11',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(247,247,247,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['LQ_avec__1'] >= 1.100000 && feature.properties['LQ_avec__1'] <= 1.500000 ) {
+                return {
+                pane: 'pane_LQManagerswithsocialhousing_11',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(244,165,130,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['LQ_avec__1'] >= 1.500000 && feature.properties['LQ_avec__1'] <= 2.243961 ) {
+                return {
+                pane: 'pane_LQManagerswithsocialhousing_11',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(202,0,32,1.0)',
+                interactive: true,
+            }
+            }
+        }
+        map.createPane('pane_LQManagerswithsocialhousing_11');
+        map.getPane('pane_LQManagerswithsocialhousing_11').style.zIndex = 411;
+        map.getPane('pane_LQManagerswithsocialhousing_11').style['mix-blend-mode'] = 'normal';
+        var layer_LQManagerswithsocialhousing_11 = new L.geoJson(json_LQManagerswithsocialhousing_11, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_LQManagerswithsocialhousing_11',
+            layerName: 'layer_LQManagerswithsocialhousing_11',
+            pane: 'pane_LQManagerswithsocialhousing_11',
+            onEachFeature: pop_LQManagerswithsocialhousing_11,
+            style: style_LQManagerswithsocialhousing_11_0,
+        });
+        bounds_group.addLayer(layer_LQManagerswithsocialhousing_11);
+        map.addLayer(layer_LQManagerswithsocialhousing_11);
+        function pop_LQEmployeswithsocialhousing_12(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DEPCO'] !== null ? autolinker.link(String(feature.properties['DEPCO']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['IIRIS'] !== null ? autolinker.link(String(feature.properties['IIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NIRIS'] !== null ? autolinker.link(String(feature.properties['NIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DESIG'] !== null ? autolinker.link(String(feature.properties['DESIG']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['QVI31'] !== null ? autolinker.link(String(feature.properties['QVI31']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['IVIL31'] !== null ? autolinker.link(String(feature.properties['IVIL31']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DCOMIRIS'] !== null ? autolinker.link(String(feature.properties['DCOMIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NQELU'] !== null ? autolinker.link(String(feature.properties['NQELU']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SURFA_KM2'] !== null ? autolinker.link(String(feature.properties['SURFA_KM2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DENSIT_KM2'] !== null ? autolinker.link(String(feature.properties['DENSIT_KM2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NB_ILOTS'] !== null ? autolinker.link(String(feature.properties['NB_ILOTS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['TRIRIS'] !== null ? autolinker.link(String(feature.properties['TRIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SHAPE_AREA'] !== null ? autolinker.link(String(feature.properties['SHAPE_AREA']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SHAPE_LEN'] !== null ? autolinker.link(String(feature.properties['SHAPE_LEN']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LQ_avec_HL'] !== null ? autolinker.link(String(feature.properties['LQ_avec_HL']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LQ_avec__1'] !== null ? autolinker.link(String(feature.properties['LQ_avec__1']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LQ_avec__2'] !== null ? autolinker.link(String(feature.properties['LQ_avec__2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LQ_avec__3'] !== null ? autolinker.link(String(feature.properties['LQ_avec__3']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_LQEmployeswithsocialhousing_12_0(feature) {
+            if (feature.properties['LQ_avec__2'] >= 0.350000 && feature.properties['LQ_avec__2'] <= 0.500000 ) {
+                return {
+                pane: 'pane_LQEmployeswithsocialhousing_12',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(5,113,176,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['LQ_avec__2'] >= 0.500000 && feature.properties['LQ_avec__2'] <= 0.900000 ) {
+                return {
+                pane: 'pane_LQEmployeswithsocialhousing_12',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(146,197,222,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['LQ_avec__2'] >= 0.900000 && feature.properties['LQ_avec__2'] <= 1.100000 ) {
+                return {
+                pane: 'pane_LQEmployeswithsocialhousing_12',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(247,247,247,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['LQ_avec__2'] >= 1.100000 && feature.properties['LQ_avec__2'] <= 1.500000 ) {
+                return {
+                pane: 'pane_LQEmployeswithsocialhousing_12',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(244,165,130,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['LQ_avec__2'] >= 1.500000 && feature.properties['LQ_avec__2'] <= 1.492699 ) {
+                return {
+                pane: 'pane_LQEmployeswithsocialhousing_12',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(202,0,32,1.0)',
+                interactive: true,
+            }
+            }
+        }
+        map.createPane('pane_LQEmployeswithsocialhousing_12');
+        map.getPane('pane_LQEmployeswithsocialhousing_12').style.zIndex = 412;
+        map.getPane('pane_LQEmployeswithsocialhousing_12').style['mix-blend-mode'] = 'normal';
+        var layer_LQEmployeswithsocialhousing_12 = new L.geoJson(json_LQEmployeswithsocialhousing_12, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_LQEmployeswithsocialhousing_12',
+            layerName: 'layer_LQEmployeswithsocialhousing_12',
+            pane: 'pane_LQEmployeswithsocialhousing_12',
+            onEachFeature: pop_LQEmployeswithsocialhousing_12,
+            style: style_LQEmployeswithsocialhousing_12_0,
+        });
+        bounds_group.addLayer(layer_LQEmployeswithsocialhousing_12);
+        map.addLayer(layer_LQEmployeswithsocialhousing_12);
+        function pop_LQWorkerswithsocialhousing_13(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DEPCO'] !== null ? autolinker.link(String(feature.properties['DEPCO']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['IIRIS'] !== null ? autolinker.link(String(feature.properties['IIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NIRIS'] !== null ? autolinker.link(String(feature.properties['NIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DESIG'] !== null ? autolinker.link(String(feature.properties['DESIG']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['QVI31'] !== null ? autolinker.link(String(feature.properties['QVI31']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['IVIL31'] !== null ? autolinker.link(String(feature.properties['IVIL31']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DCOMIRIS'] !== null ? autolinker.link(String(feature.properties['DCOMIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NQELU'] !== null ? autolinker.link(String(feature.properties['NQELU']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SURFA_KM2'] !== null ? autolinker.link(String(feature.properties['SURFA_KM2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DENSIT_KM2'] !== null ? autolinker.link(String(feature.properties['DENSIT_KM2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NB_ILOTS'] !== null ? autolinker.link(String(feature.properties['NB_ILOTS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['TRIRIS'] !== null ? autolinker.link(String(feature.properties['TRIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SHAPE_AREA'] !== null ? autolinker.link(String(feature.properties['SHAPE_AREA']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SHAPE_LEN'] !== null ? autolinker.link(String(feature.properties['SHAPE_LEN']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LQ_avec_HL'] !== null ? autolinker.link(String(feature.properties['LQ_avec_HL']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LQ_avec__1'] !== null ? autolinker.link(String(feature.properties['LQ_avec__1']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LQ_avec__2'] !== null ? autolinker.link(String(feature.properties['LQ_avec__2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LQ_avec__3'] !== null ? autolinker.link(String(feature.properties['LQ_avec__3']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_LQWorkerswithsocialhousing_13_0(feature) {
+            if (feature.properties['LQ_avec__3'] >= 0.170000 && feature.properties['LQ_avec__3'] <= 0.500000 ) {
+                return {
+                pane: 'pane_LQWorkerswithsocialhousing_13',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(5,113,176,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['LQ_avec__3'] >= 0.500000 && feature.properties['LQ_avec__3'] <= 0.900000 ) {
+                return {
+                pane: 'pane_LQWorkerswithsocialhousing_13',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(146,197,222,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['LQ_avec__3'] >= 0.900000 && feature.properties['LQ_avec__3'] <= 1.100000 ) {
+                return {
+                pane: 'pane_LQWorkerswithsocialhousing_13',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(247,247,247,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['LQ_avec__3'] >= 1.100000 && feature.properties['LQ_avec__3'] <= 1.500000 ) {
+                return {
+                pane: 'pane_LQWorkerswithsocialhousing_13',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(244,165,130,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['LQ_avec__3'] >= 1.500000 && feature.properties['LQ_avec__3'] <= 2.633812 ) {
+                return {
+                pane: 'pane_LQWorkerswithsocialhousing_13',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(202,0,32,1.0)',
+                interactive: true,
+            }
+            }
+        }
+        map.createPane('pane_LQWorkerswithsocialhousing_13');
+        map.getPane('pane_LQWorkerswithsocialhousing_13').style.zIndex = 413;
+        map.getPane('pane_LQWorkerswithsocialhousing_13').style['mix-blend-mode'] = 'normal';
+        var layer_LQWorkerswithsocialhousing_13 = new L.geoJson(json_LQWorkerswithsocialhousing_13, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_LQWorkerswithsocialhousing_13',
+            layerName: 'layer_LQWorkerswithsocialhousing_13',
+            pane: 'pane_LQWorkerswithsocialhousing_13',
+            onEachFeature: pop_LQWorkerswithsocialhousing_13,
+            style: style_LQWorkerswithsocialhousing_13_0,
+        });
+        bounds_group.addLayer(layer_LQWorkerswithsocialhousing_13);
+        map.addLayer(layer_LQWorkerswithsocialhousing_13);
+        function pop_LQManagerswithoutsocialhousing_14(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DEPCO'] !== null ? autolinker.link(String(feature.properties['DEPCO']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['IIRIS'] !== null ? autolinker.link(String(feature.properties['IIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NIRIS'] !== null ? autolinker.link(String(feature.properties['NIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DESIG'] !== null ? autolinker.link(String(feature.properties['DESIG']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['QVI31'] !== null ? autolinker.link(String(feature.properties['QVI31']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['IVIL31'] !== null ? autolinker.link(String(feature.properties['IVIL31']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DCOMIRIS'] !== null ? autolinker.link(String(feature.properties['DCOMIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NQELU'] !== null ? autolinker.link(String(feature.properties['NQELU']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SURFA_KM2'] !== null ? autolinker.link(String(feature.properties['SURFA_KM2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DENSIT_KM2'] !== null ? autolinker.link(String(feature.properties['DENSIT_KM2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NB_ILOTS'] !== null ? autolinker.link(String(feature.properties['NB_ILOTS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['TRIRIS'] !== null ? autolinker.link(String(feature.properties['TRIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SHAPE_AREA'] !== null ? autolinker.link(String(feature.properties['SHAPE_AREA']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SHAPE_LEN'] !== null ? autolinker.link(String(feature.properties['SHAPE_LEN']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LQ_sans_HL'] !== null ? autolinker.link(String(feature.properties['LQ_sans_HL']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LQ_sans__1'] !== null ? autolinker.link(String(feature.properties['LQ_sans__1']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LQ_sans__2'] !== null ? autolinker.link(String(feature.properties['LQ_sans__2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LQ_sans__3'] !== null ? autolinker.link(String(feature.properties['LQ_sans__3']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_LQManagerswithoutsocialhousing_14_0(feature) {
+            if (feature.properties['LQ_sans__1'] >= 0.180000 && feature.properties['LQ_sans__1'] <= 0.500000 ) {
+                return {
+                pane: 'pane_LQManagerswithoutsocialhousing_14',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(5,113,176,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['LQ_sans__1'] >= 0.500000 && feature.properties['LQ_sans__1'] <= 0.900000 ) {
+                return {
+                pane: 'pane_LQManagerswithoutsocialhousing_14',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(146,197,222,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['LQ_sans__1'] >= 0.900000 && feature.properties['LQ_sans__1'] <= 1.100000 ) {
+                return {
+                pane: 'pane_LQManagerswithoutsocialhousing_14',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(247,247,247,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['LQ_sans__1'] >= 1.100000 && feature.properties['LQ_sans__1'] <= 1.500000 ) {
+                return {
+                pane: 'pane_LQManagerswithoutsocialhousing_14',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(244,165,130,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['LQ_sans__1'] >= 1.500000 && feature.properties['LQ_sans__1'] <= 1.930090 ) {
+                return {
+                pane: 'pane_LQManagerswithoutsocialhousing_14',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(202,0,32,1.0)',
+                interactive: true,
+            }
+            }
+        }
+        map.createPane('pane_LQManagerswithoutsocialhousing_14');
+        map.getPane('pane_LQManagerswithoutsocialhousing_14').style.zIndex = 414;
+        map.getPane('pane_LQManagerswithoutsocialhousing_14').style['mix-blend-mode'] = 'normal';
+        var layer_LQManagerswithoutsocialhousing_14 = new L.geoJson(json_LQManagerswithoutsocialhousing_14, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_LQManagerswithoutsocialhousing_14',
+            layerName: 'layer_LQManagerswithoutsocialhousing_14',
+            pane: 'pane_LQManagerswithoutsocialhousing_14',
+            onEachFeature: pop_LQManagerswithoutsocialhousing_14,
+            style: style_LQManagerswithoutsocialhousing_14_0,
+        });
+        bounds_group.addLayer(layer_LQManagerswithoutsocialhousing_14);
+        map.addLayer(layer_LQManagerswithoutsocialhousing_14);
+        function pop_LQEmployeswithoutsocialhousing_15(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DEPCO'] !== null ? autolinker.link(String(feature.properties['DEPCO']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['IIRIS'] !== null ? autolinker.link(String(feature.properties['IIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NIRIS'] !== null ? autolinker.link(String(feature.properties['NIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DESIG'] !== null ? autolinker.link(String(feature.properties['DESIG']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['QVI31'] !== null ? autolinker.link(String(feature.properties['QVI31']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['IVIL31'] !== null ? autolinker.link(String(feature.properties['IVIL31']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DCOMIRIS'] !== null ? autolinker.link(String(feature.properties['DCOMIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NQELU'] !== null ? autolinker.link(String(feature.properties['NQELU']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SURFA_KM2'] !== null ? autolinker.link(String(feature.properties['SURFA_KM2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DENSIT_KM2'] !== null ? autolinker.link(String(feature.properties['DENSIT_KM2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NB_ILOTS'] !== null ? autolinker.link(String(feature.properties['NB_ILOTS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['TRIRIS'] !== null ? autolinker.link(String(feature.properties['TRIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SHAPE_AREA'] !== null ? autolinker.link(String(feature.properties['SHAPE_AREA']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SHAPE_LEN'] !== null ? autolinker.link(String(feature.properties['SHAPE_LEN']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LQ_sans_HL'] !== null ? autolinker.link(String(feature.properties['LQ_sans_HL']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LQ_sans__1'] !== null ? autolinker.link(String(feature.properties['LQ_sans__1']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LQ_sans__2'] !== null ? autolinker.link(String(feature.properties['LQ_sans__2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LQ_sans__3'] !== null ? autolinker.link(String(feature.properties['LQ_sans__3']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_LQEmployeswithoutsocialhousing_15_0(feature) {
+            if (feature.properties['LQ_sans__2'] >= 0.360000 && feature.properties['LQ_sans__2'] <= 0.500000 ) {
+                return {
+                pane: 'pane_LQEmployeswithoutsocialhousing_15',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(5,113,176,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['LQ_sans__2'] >= 0.500000 && feature.properties['LQ_sans__2'] <= 0.900000 ) {
+                return {
+                pane: 'pane_LQEmployeswithoutsocialhousing_15',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(146,197,222,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['LQ_sans__2'] >= 0.900000 && feature.properties['LQ_sans__2'] <= 1.100000 ) {
+                return {
+                pane: 'pane_LQEmployeswithoutsocialhousing_15',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(247,247,247,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['LQ_sans__2'] >= 1.100000 && feature.properties['LQ_sans__2'] <= 1.500000 ) {
+                return {
+                pane: 'pane_LQEmployeswithoutsocialhousing_15',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(244,165,130,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['LQ_sans__2'] >= 1.500000 && feature.properties['LQ_sans__2'] <= 1.745700 ) {
+                return {
+                pane: 'pane_LQEmployeswithoutsocialhousing_15',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(202,0,32,1.0)',
+                interactive: true,
+            }
+            }
+        }
+        map.createPane('pane_LQEmployeswithoutsocialhousing_15');
+        map.getPane('pane_LQEmployeswithoutsocialhousing_15').style.zIndex = 415;
+        map.getPane('pane_LQEmployeswithoutsocialhousing_15').style['mix-blend-mode'] = 'normal';
+        var layer_LQEmployeswithoutsocialhousing_15 = new L.geoJson(json_LQEmployeswithoutsocialhousing_15, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_LQEmployeswithoutsocialhousing_15',
+            layerName: 'layer_LQEmployeswithoutsocialhousing_15',
+            pane: 'pane_LQEmployeswithoutsocialhousing_15',
+            onEachFeature: pop_LQEmployeswithoutsocialhousing_15,
+            style: style_LQEmployeswithoutsocialhousing_15_0,
+        });
+        bounds_group.addLayer(layer_LQEmployeswithoutsocialhousing_15);
+        map.addLayer(layer_LQEmployeswithoutsocialhousing_15);
+        function pop_LQWorkerswithoutsocialhousing_16(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DEPCO'] !== null ? autolinker.link(String(feature.properties['DEPCO']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['IIRIS'] !== null ? autolinker.link(String(feature.properties['IIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NIRIS'] !== null ? autolinker.link(String(feature.properties['NIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DESIG'] !== null ? autolinker.link(String(feature.properties['DESIG']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['QVI31'] !== null ? autolinker.link(String(feature.properties['QVI31']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['IVIL31'] !== null ? autolinker.link(String(feature.properties['IVIL31']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DCOMIRIS'] !== null ? autolinker.link(String(feature.properties['DCOMIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NQELU'] !== null ? autolinker.link(String(feature.properties['NQELU']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SURFA_KM2'] !== null ? autolinker.link(String(feature.properties['SURFA_KM2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DENSIT_KM2'] !== null ? autolinker.link(String(feature.properties['DENSIT_KM2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NB_ILOTS'] !== null ? autolinker.link(String(feature.properties['NB_ILOTS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['TRIRIS'] !== null ? autolinker.link(String(feature.properties['TRIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SHAPE_AREA'] !== null ? autolinker.link(String(feature.properties['SHAPE_AREA']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SHAPE_LEN'] !== null ? autolinker.link(String(feature.properties['SHAPE_LEN']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LQ_sans_HL'] !== null ? autolinker.link(String(feature.properties['LQ_sans_HL']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LQ_sans__1'] !== null ? autolinker.link(String(feature.properties['LQ_sans__1']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LQ_sans__2'] !== null ? autolinker.link(String(feature.properties['LQ_sans__2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LQ_sans__3'] !== null ? autolinker.link(String(feature.properties['LQ_sans__3']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_LQWorkerswithoutsocialhousing_16_0(feature) {
+            if (feature.properties['LQ_sans__3'] >= 0.210000 && feature.properties['LQ_sans__3'] <= 0.500000 ) {
+                return {
+                pane: 'pane_LQWorkerswithoutsocialhousing_16',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(5,113,176,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['LQ_sans__3'] >= 0.500000 && feature.properties['LQ_sans__3'] <= 0.900000 ) {
+                return {
+                pane: 'pane_LQWorkerswithoutsocialhousing_16',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(146,197,222,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['LQ_sans__3'] >= 0.900000 && feature.properties['LQ_sans__3'] <= 1.100000 ) {
+                return {
+                pane: 'pane_LQWorkerswithoutsocialhousing_16',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(247,247,247,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['LQ_sans__3'] >= 1.100000 && feature.properties['LQ_sans__3'] <= 1.500000 ) {
+                return {
+                pane: 'pane_LQWorkerswithoutsocialhousing_16',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(244,165,130,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['LQ_sans__3'] >= 1.500000 && feature.properties['LQ_sans__3'] <= 2.705069 ) {
+                return {
+                pane: 'pane_LQWorkerswithoutsocialhousing_16',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(202,0,32,1.0)',
+                interactive: true,
+            }
+            }
+        }
+        map.createPane('pane_LQWorkerswithoutsocialhousing_16');
+        map.getPane('pane_LQWorkerswithoutsocialhousing_16').style.zIndex = 416;
+        map.getPane('pane_LQWorkerswithoutsocialhousing_16').style['mix-blend-mode'] = 'normal';
+        var layer_LQWorkerswithoutsocialhousing_16 = new L.geoJson(json_LQWorkerswithoutsocialhousing_16, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_LQWorkerswithoutsocialhousing_16',
+            layerName: 'layer_LQWorkerswithoutsocialhousing_16',
+            pane: 'pane_LQWorkerswithoutsocialhousing_16',
+            onEachFeature: pop_LQWorkerswithoutsocialhousing_16,
+            style: style_LQWorkerswithoutsocialhousing_16_0,
+        });
+        bounds_group.addLayer(layer_LQWorkerswithoutsocialhousing_16);
+        map.addLayer(layer_LQWorkerswithoutsocialhousing_16);
+        function pop_ShareofsocialhousingbyIRISin2023_17(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DEPCO'] !== null ? autolinker.link(String(feature.properties['DEPCO']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['IIRIS'] !== null ? autolinker.link(String(feature.properties['IIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NIRIS'] !== null ? autolinker.link(String(feature.properties['NIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DESIG'] !== null ? autolinker.link(String(feature.properties['DESIG']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['QVI31'] !== null ? autolinker.link(String(feature.properties['QVI31']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['IVIL31'] !== null ? autolinker.link(String(feature.properties['IVIL31']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DCOMIRIS'] !== null ? autolinker.link(String(feature.properties['DCOMIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NQELU'] !== null ? autolinker.link(String(feature.properties['NQELU']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SURFA_KM2'] !== null ? autolinker.link(String(feature.properties['SURFA_KM2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DENSIT_KM2'] !== null ? autolinker.link(String(feature.properties['DENSIT_KM2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NB_ILOTS'] !== null ? autolinker.link(String(feature.properties['NB_ILOTS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['TRIRIS'] !== null ? autolinker.link(String(feature.properties['TRIRIS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SHAPE_AREA'] !== null ? autolinker.link(String(feature.properties['SHAPE_AREA']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SHAPE_LEN'] !== null ? autolinker.link(String(feature.properties['SHAPE_LEN']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['Part logement hlm Brest_Libell� g�ographique'] !== null ? autolinker.link(String(feature.properties['Part logement hlm Brest_Libell� g�ographique']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['Part logement hlm Brest_Somme de Nombre de logements du Parc Locatif Social'] !== null ? autolinker.link(String(feature.properties['Part logement hlm Brest_Somme de Nombre de logements du Parc Locatif Social']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['Part logement hlm Brest_Part des logements sociaux (%)'] !== null ? autolinker.link(String(feature.properties['Part logement hlm Brest_Part des logements sociaux (%)']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+        function style_ShareofsocialhousingbyIRISin2023_17_0(feature) {
+            var context = {
+                feature: feature,
+                variables: {}
+            };
+            // Start of if blocks and style check logic
+            if (exp_ShareofsocialhousingbyIRISin2023_17rule0_eval_expression(context)) {
+                  return {
+                pane: 'pane_ShareofsocialhousingbyIRISin2023_17',
+                stroke: false, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,255,255,1.0)',
+                interactive: true,
+            };
+                }
+                else if (exp_ShareofsocialhousingbyIRISin2023_17rule1_eval_expression(context)) {
+                  return {
+                pane: 'pane_ShareofsocialhousingbyIRISin2023_17',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(254,221,121,1.0)',
+                interactive: true,
+            };
+                }
+                else if (exp_ShareofsocialhousingbyIRISin2023_17rule2_eval_expression(context)) {
+                  return {
+                pane: 'pane_ShareofsocialhousingbyIRISin2023_17',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(254,183,81,1.0)',
+                interactive: true,
+            };
+                }
+                else if (exp_ShareofsocialhousingbyIRISin2023_17rule3_eval_expression(context)) {
+                  return {
+                pane: 'pane_ShareofsocialhousingbyIRISin2023_17',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(253,141,60,1.0)',
+                interactive: true,
+            };
+                }
+                else if (exp_ShareofsocialhousingbyIRISin2023_17rule4_eval_expression(context)) {
+                  return {
+                pane: 'pane_ShareofsocialhousingbyIRISin2023_17',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(244,86,41,1.0)',
+                interactive: true,
+            };
+                }
+                else if (exp_ShareofsocialhousingbyIRISin2023_17rule5_eval_expression(context)) {
+                  return {
+                pane: 'pane_ShareofsocialhousingbyIRISin2023_17',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(223,39,34,1.0)',
+                interactive: true,
+            };
+                }
+                else if (exp_ShareofsocialhousingbyIRISin2023_17rule6_eval_expression(context)) {
+                  return {
+                pane: 'pane_ShareofsocialhousingbyIRISin2023_17',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(189,0,38,1.0)',
+                interactive: true,
+            };
+                }
+                else if (exp_ShareofsocialhousingbyIRISin2023_17rule7_eval_expression(context)) {
+                  return {
+                pane: 'pane_ShareofsocialhousingbyIRISin2023_17',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(217,217,217,1.0)',
+                interactive: true,
+            };
+                }
+            else {
+                return {fill: false, stroke: false};
+            }
+        }
+        map.createPane('pane_ShareofsocialhousingbyIRISin2023_17');
+        map.getPane('pane_ShareofsocialhousingbyIRISin2023_17').style.zIndex = 417;
+        map.getPane('pane_ShareofsocialhousingbyIRISin2023_17').style['mix-blend-mode'] = 'normal';
+        var layer_ShareofsocialhousingbyIRISin2023_17 = new L.geoJson(json_ShareofsocialhousingbyIRISin2023_17, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_ShareofsocialhousingbyIRISin2023_17',
+            layerName: 'layer_ShareofsocialhousingbyIRISin2023_17',
+            pane: 'pane_ShareofsocialhousingbyIRISin2023_17',
+            onEachFeature: pop_ShareofsocialhousingbyIRISin2023_17,
+            style: style_ShareofsocialhousingbyIRISin2023_17_0,
+        });
+        bounds_group.addLayer(layer_ShareofsocialhousingbyIRISin2023_17);
+        map.addLayer(layer_ShareofsocialhousingbyIRISin2023_17);
+        function pop_100mgridofsocialhousingstockbydominantfinancingtype2025_18(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['index_right'] !== null ? autolinker.link(String(feature.properties['index_right']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['building_count'] !== null ? autolinker.link(String(feature.properties['building_count']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['dominant_financing_type'] !== null ? autolinker.link(String(feature.properties['dominant_financing_type']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_100mgridofsocialhousingstockbydominantfinancingtype2025_18_0(feature) {
+            switch(String(feature.properties['dominant_financing_type'])) {
+                case 'PLAI':
+                    return {
+                pane: 'pane_100mgridofsocialhousingstockbydominantfinancingtype2025_18',
+                stroke: false, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,106,105,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'PLUS':
+                    return {
+                pane: 'pane_100mgridofsocialhousingstockbydominantfinancingtype2025_18',
+                stroke: false, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(252,253,111,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'PLS':
+                    return {
+                pane: 'pane_100mgridofsocialhousingstockbydominantfinancingtype2025_18',
+                stroke: false, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(160,231,185,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'PLI':
+                    return {
+                pane: 'pane_100mgridofsocialhousingstockbydominantfinancingtype2025_18',
+                stroke: false, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(51,160,44,1.0)',
+                interactive: true,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_100mgridofsocialhousingstockbydominantfinancingtype2025_18');
+        map.getPane('pane_100mgridofsocialhousingstockbydominantfinancingtype2025_18').style.zIndex = 418;
+        map.getPane('pane_100mgridofsocialhousingstockbydominantfinancingtype2025_18').style['mix-blend-mode'] = 'normal';
+        var layer_100mgridofsocialhousingstockbydominantfinancingtype2025_18 = new L.geoJson(json_100mgridofsocialhousingstockbydominantfinancingtype2025_18, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_100mgridofsocialhousingstockbydominantfinancingtype2025_18',
+            layerName: 'layer_100mgridofsocialhousingstockbydominantfinancingtype2025_18',
+            pane: 'pane_100mgridofsocialhousingstockbydominantfinancingtype2025_18',
+            onEachFeature: pop_100mgridofsocialhousingstockbydominantfinancingtype2025_18,
+            style: style_100mgridofsocialhousingstockbydominantfinancingtype2025_18_0,
+        });
+        bounds_group.addLayer(layer_100mgridofsocialhousingstockbydominantfinancingtype2025_18);
+        map.addLayer(layer_100mgridofsocialhousingstockbydominantfinancingtype2025_18);
+        function pop_Locationofsocialhousing_19(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['Code Commu'] !== null ? autolinker.link(String(feature.properties['Code Commu']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['Nom du Pro'] !== null ? autolinker.link(String(feature.properties['Nom du Pro']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['Lieu Dit'] !== null ? autolinker.link(String(feature.properties['Lieu Dit']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2"><strong>Type de _1</strong><br />' + (feature.properties['Type de _1'] !== null ? autolinker.link(String(feature.properties['Type de _1']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2"><strong>Nombre de</strong><br />' + (feature.properties['Nombre de'] !== null ? autolinker.link(String(feature.properties['Nombre de']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['Surface ha'] !== null ? autolinker.link(String(feature.properties['Surface ha']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['Année d_1'] !== null ? autolinker.link(String(feature.properties['Année d_1']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2"><strong>Financem_1</strong><br />' + (feature.properties['Financem_1'] !== null ? autolinker.link(String(feature.properties['Financem_1']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['Date de co'] !== null ? autolinker.link(String(feature.properties['Date de co']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2"><strong>ADRESSE_1</strong><br />' + (feature.properties['ADRESSE_1'] !== null ? autolinker.link(String(feature.properties['ADRESSE_1']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['latitude'] !== null ? autolinker.link(String(feature.properties['latitude']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['longitude'] !== null ? autolinker.link(String(feature.properties['longitude']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2"><strong>Type de fi</strong><br />' + (feature.properties['Type de fi'] !== null ? autolinker.link(String(feature.properties['Type de fi']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_Locationofsocialhousing_19_0() {
+            return {
+                pane: 'pane_Locationofsocialhousing_19',
+                radius: 2.8,
+                stroke: false,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,127,0,1.0)',
+                interactive: true,
+            }
+        }
+        map.createPane('pane_Locationofsocialhousing_19');
+        map.getPane('pane_Locationofsocialhousing_19').style.zIndex = 419;
+        map.getPane('pane_Locationofsocialhousing_19').style['mix-blend-mode'] = 'normal';
+        var layer_Locationofsocialhousing_19 = new L.geoJson(json_Locationofsocialhousing_19, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_Locationofsocialhousing_19',
+            layerName: 'layer_Locationofsocialhousing_19',
+            pane: 'pane_Locationofsocialhousing_19',
+            onEachFeature: pop_Locationofsocialhousing_19,
+            pointToLayer: function (feature, latlng) {
+                var context = {
+                    feature: feature,
+                    variables: {}
+                };
+                return L.circleMarker(latlng, style_Locationofsocialhousing_19_0(feature));
+            },
+        });
+        bounds_group.addLayer(layer_Locationofsocialhousing_19);
+        map.addLayer(layer_Locationofsocialhousing_19);
+        function pop_Administrativeboundaries_20(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ID'] !== null ? autolinker.link(String(feature.properties['ID']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['POPULATION'] !== null ? autolinker.link(String(feature.properties['POPULATION']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['CODE_POST'] !== null ? autolinker.link(String(feature.properties['CODE_POST']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2"><strong>NOM</strong><br />' + (feature.properties['NOM'] !== null ? autolinker.link(String(feature.properties['NOM']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['layer'] !== null ? autolinker.link(String(feature.properties['layer']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['path'] !== null ? autolinker.link(String(feature.properties['path']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_Administrativeboundaries_20_0() {
+            return {
+                pane: 'pane_Administrativeboundaries_20',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fillOpacity: 0,
+                interactive: true,
+            }
+        }
+        map.createPane('pane_Administrativeboundaries_20');
+        map.getPane('pane_Administrativeboundaries_20').style.zIndex = 420;
+        map.getPane('pane_Administrativeboundaries_20').style['mix-blend-mode'] = 'normal';
+        var layer_Administrativeboundaries_20 = new L.geoJson(json_Administrativeboundaries_20, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_Administrativeboundaries_20',
+            layerName: 'layer_Administrativeboundaries_20',
+            pane: 'pane_Administrativeboundaries_20',
+            onEachFeature: pop_Administrativeboundaries_20,
+            style: style_Administrativeboundaries_20_0,
+        });
+        bounds_group.addLayer(layer_Administrativeboundaries_20);
+        map.addLayer(layer_Administrativeboundaries_20);
+        function pop_QPV_21(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DESIG'] !== null ? autolinker.link(String(feature.properties['DESIG']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['CLASS'] !== null ? autolinker.link(String(feature.properties['CLASS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['CODE_QP'] !== null ? autolinker.link(String(feature.properties['CODE_QP']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2"><strong>NOM_QP</strong><br />' + (feature.properties['NOM_QP'] !== null ? autolinker.link(String(feature.properties['NOM_QP']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['COMMUNE_QP'] !== null ? autolinker.link(String(feature.properties['COMMUNE_QP']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SHAPE_AREA'] !== null ? autolinker.link(String(feature.properties['SHAPE_AREA']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SHAPE_LEN'] !== null ? autolinker.link(String(feature.properties['SHAPE_LEN']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_QPV_21_0() {
+            return {
+                pane: 'pane_QPV_21',
+                opacity: 1,
+                color: 'rgba(227,26,28,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fillOpacity: 0,
+                interactive: true,
+            }
+        }
+        map.createPane('pane_QPV_21');
+        map.getPane('pane_QPV_21').style.zIndex = 421;
+        map.getPane('pane_QPV_21').style['mix-blend-mode'] = 'normal';
+        var layer_QPV_21 = new L.geoJson(json_QPV_21, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_QPV_21',
+            layerName: 'layer_QPV_21',
+            pane: 'pane_QPV_21',
+            onEachFeature: pop_QPV_21,
+            style: style_QPV_21_0,
+        });
+        bounds_group.addLayer(layer_QPV_21);
+        map.addLayer(layer_QPV_21);
+        const url = {"Nominatim OSM": "https://nominatim.openstreetmap.org/search?format=geojson&addressdetails=1&",
+        "France BAN": "https://api-adresse.data.gouv.fr/search/?"}
+        var photonControl = L.control.photon({
+            url: url["France BAN"],
+            feedbackLabel: '',
+            position: 'topleft',
+            includePosition: true,
+            initial: true,
+            // resultsHandler: myHandler,
+        }).addTo(map);
+        photonControl._container.childNodes[0].style.borderRadius="10px"
+        // Create a variable to store the geoJSON data
+        var x = null;
+        // Create a variable to store the marker
+        var marker = null;
+        // Add an event listener to the Photon control to create a marker from the returned geoJSON data
+        var z = null;
+        photonControl.on('selected', function(e) {
+            console.log(photonControl.search.resultsContainer);
+            if (x != null) {
+                map.removeLayer(obj3.marker);
+                map.removeLayer(x);
+            }
+            obj2.gcd = e.choice;
+            x = L.geoJSON(obj2.gcd).addTo(map);
+            var label = typeof obj2.gcd.properties.label === 'undefined' ? obj2.gcd.properties.display_name : obj2.gcd.properties.label;
+            obj3.marker = L.marker(x.getLayers()[0].getLatLng()).bindPopup(label).addTo(map);
+            map.setView(x.getLayers()[0].getLatLng(), 17);
+            z = typeof e.choice.properties.label === 'undefined'? e.choice.properties.display_name : e.choice.properties.label;
+            console.log(e);
+            e.target.input.value = z;
+        });
+        var search = document.getElementsByClassName("leaflet-photon leaflet-control")[0];
+        search.classList.add("leaflet-control-search")
+        search.style.display = "flex";
+        search.style.backgroundColor="rgba(255,255,255,0.5)" 
+
+        // Create the new button element
+        var button = document.createElement("div");
+        button.id = "gcd-button-control";
+        button.className = "gcd-gl-btn fa fa-search search-button";
+
+        // Insert the button at the beginning of the search control
+        search.insertBefore(button, search.firstChild);
+        last = search.lastChild;
+        last.style.display = "none";
+        button.addEventListener("click", function (e) {
+            if (last.style.display === "none") {
+                last.style.display = "block";
+            } else {
+                last.style.display = "none";
+            }
+        });
+        var overlaysTree = [
+            {label: '<img src="legend/QPV_21.png" /> QPV', layer: layer_QPV_21},
+            {label: '<img src="legend/Administrativeboundaries_20.png" /> Administrative boundaries', layer: layer_Administrativeboundaries_20},
+            {label: '<img src="legend/Locationofsocialhousing_19.png" /> Location of social housing', layer: layer_Locationofsocialhousing_19},
+            {label: '100m grid of social housing stock by dominant financing type (2025)<br /><table><tr><td style="text-align: center;"><img src="legend/100mgridofsocialhousingstockbydominantfinancingtype2025_18_PLAI0.png" /></td><td>PLAI</td></tr><tr><td style="text-align: center;"><img src="legend/100mgridofsocialhousingstockbydominantfinancingtype2025_18_PLUS1.png" /></td><td>PLUS</td></tr><tr><td style="text-align: center;"><img src="legend/100mgridofsocialhousingstockbydominantfinancingtype2025_18_PLS2.png" /></td><td>PLS</td></tr><tr><td style="text-align: center;"><img src="legend/100mgridofsocialhousingstockbydominantfinancingtype2025_18_PLI3.png" /></td><td>PLI</td></tr></table>', layer: layer_100mgridofsocialhousingstockbydominantfinancingtype2025_18},
+            {label: 'Share of social housing by IRIS in 2023 (%)<br /><table><tr><td style="text-align: center;"><img src="legend/ShareofsocialhousingbyIRISin2023_17_000.png" /></td><td>0 - 0</td></tr><tr><td style="text-align: center;"><img src="legend/ShareofsocialhousingbyIRISin2023_17_0151.png" /></td><td>0 - 1,5</td></tr><tr><td style="text-align: center;"><img src="legend/ShareofsocialhousingbyIRISin2023_17_15312.png" /></td><td>1,5 - 3,1</td></tr><tr><td style="text-align: center;"><img src="legend/ShareofsocialhousingbyIRISin2023_17_31493.png" /></td><td>3,1 - 4,9</td></tr><tr><td style="text-align: center;"><img src="legend/ShareofsocialhousingbyIRISin2023_17_49714.png" /></td><td>4,9 - 7,1</td></tr><tr><td style="text-align: center;"><img src="legend/ShareofsocialhousingbyIRISin2023_17_711275.png" /></td><td>7,1 - 12,7</td></tr><tr><td style="text-align: center;"><img src="legend/ShareofsocialhousingbyIRISin2023_17_1271676.png" /></td><td>12,7 - 16,7</td></tr><tr><td style="text-align: center;"><img src="legend/ShareofsocialhousingbyIRISin2023_17_Nodata7.png" /></td><td>No data</td></tr></table>', layer: layer_ShareofsocialhousingbyIRISin2023_17},
+        {label: '<b>LQ without social housing</b>',  selectAllCheckbox: true, children: [
+            {label: 'LQ Workers - without social housing<br /><table><tr><td style="text-align: center;"><img src="legend/LQWorkerswithoutsocialhousing_16_021050verylow0.png" /></td><td>0,21 - 0,50  very low</td></tr><tr><td style="text-align: center;"><img src="legend/LQWorkerswithoutsocialhousing_16_05090low1.png" /></td><td>0,5 - 0,90  low</td></tr><tr><td style="text-align: center;"><img src="legend/LQWorkerswithoutsocialhousing_16_09110neutral2.png" /></td><td>0,9 - 1,10  neutral</td></tr><tr><td style="text-align: center;"><img src="legend/LQWorkerswithoutsocialhousing_16_11150high3.png" /></td><td>1,1 - 1,50  high</td></tr><tr><td style="text-align: center;"><img src="legend/LQWorkerswithoutsocialhousing_16_15271veryhigh4.png" /></td><td>1,5 - 2,71  very high</td></tr></table>', layer: layer_LQWorkerswithoutsocialhousing_16},
+            {label: 'LQ Employes - without social housing<br /><table><tr><td style="text-align: center;"><img src="legend/LQEmployeswithoutsocialhousing_15_036050verylow0.png" /></td><td>0,36 - 0,50  very low</td></tr><tr><td style="text-align: center;"><img src="legend/LQEmployeswithoutsocialhousing_15_05090low1.png" /></td><td>0,5 - 0,90  low</td></tr><tr><td style="text-align: center;"><img src="legend/LQEmployeswithoutsocialhousing_15_09110neutral2.png" /></td><td>0,9 - 1,10  neutral</td></tr><tr><td style="text-align: center;"><img src="legend/LQEmployeswithoutsocialhousing_15_1115high3.png" /></td><td>1,1 - 1,5  high</td></tr><tr><td style="text-align: center;"><img src="legend/LQEmployeswithoutsocialhousing_15_15175veryhigh4.png" /></td><td>1,5 - 1,75  very high</td></tr></table>', layer: layer_LQEmployeswithoutsocialhousing_15},
+            {label: 'LQ Managers - without social housing<br /><table><tr><td style="text-align: center;"><img src="legend/LQManagerswithoutsocialhousing_14_018050verylow0.png" /></td><td>0,18 - 0,50  very low</td></tr><tr><td style="text-align: center;"><img src="legend/LQManagerswithoutsocialhousing_14_05090low1.png" /></td><td>0,5 - 0,90  low</td></tr><tr><td style="text-align: center;"><img src="legend/LQManagerswithoutsocialhousing_14_09110neutral2.png" /></td><td>0,9 - 1,10  neutral</td></tr><tr><td style="text-align: center;"><img src="legend/LQManagerswithoutsocialhousing_14_11150high3.png" /></td><td>1,1 - 1,50  high</td></tr><tr><td style="text-align: center;"><img src="legend/LQManagerswithoutsocialhousing_14_15193veryhigh4.png" /></td><td>1,5 - 1,93  very high</td></tr></table>', layer: layer_LQManagerswithoutsocialhousing_14},]},
+        {label: '<b>LQ with social housing</b>',  selectAllCheckbox: true, children: [
+            {label: 'LQ Workers - with social housing<br /><table><tr><td style="text-align: center;"><img src="legend/LQWorkerswithsocialhousing_13_017050verylow0.png" /></td><td>0,17 - 0,50  very low</td></tr><tr><td style="text-align: center;"><img src="legend/LQWorkerswithsocialhousing_13_05090low1.png" /></td><td>0,5 - 0,90  low</td></tr><tr><td style="text-align: center;"><img src="legend/LQWorkerswithsocialhousing_13_09110neutral2.png" /></td><td>0,9 - 1,10  neutral</td></tr><tr><td style="text-align: center;"><img src="legend/LQWorkerswithsocialhousing_13_11150high3.png" /></td><td>1,1 - 1,50  high</td></tr><tr><td style="text-align: center;"><img src="legend/LQWorkerswithsocialhousing_13_15263veryhigh4.png" /></td><td>1,5 - 2,63  very high</td></tr></table>', layer: layer_LQWorkerswithsocialhousing_13},
+            {label: 'LQ Employes - with social housing<br /><table><tr><td style="text-align: center;"><img src="legend/LQEmployeswithsocialhousing_12_035050verylow0.png" /></td><td>0,35 - 0,50  very low</td></tr><tr><td style="text-align: center;"><img src="legend/LQEmployeswithsocialhousing_12_05090low1.png" /></td><td>0,5 - 0,90  low</td></tr><tr><td style="text-align: center;"><img src="legend/LQEmployeswithsocialhousing_12_09110neutral2.png" /></td><td>0,9 - 1,10  neutral</td></tr><tr><td style="text-align: center;"><img src="legend/LQEmployeswithsocialhousing_12_11150high3.png" /></td><td>1,1 - 1,50  high</td></tr><tr><td style="text-align: center;"><img src="legend/LQEmployeswithsocialhousing_12_15149veryhigh4.png" /></td><td>1,5 - 1,49  very high</td></tr></table>', layer: layer_LQEmployeswithsocialhousing_12},
+            {label: 'LQ Managers - with social housing<br /><table><tr><td style="text-align: center;"><img src="legend/LQManagerswithsocialhousing_11_007050verylow0.png" /></td><td>0,07 - 0,50  very low</td></tr><tr><td style="text-align: center;"><img src="legend/LQManagerswithsocialhousing_11_05090low1.png" /></td><td>0,5 - 0,90  low</td></tr><tr><td style="text-align: center;"><img src="legend/LQManagerswithsocialhousing_11_09110neutral2.png" /></td><td>0,9 - 1,10  neutral</td></tr><tr><td style="text-align: center;"><img src="legend/LQManagerswithsocialhousing_11_11150high3.png" /></td><td>1,1 - 1,50  high</td></tr><tr><td style="text-align: center;"><img src="legend/LQManagerswithsocialhousing_11_15224veryhigh4.png" /></td><td>1,5 - 2,24  very high</td></tr></table>', layer: layer_LQManagerswithsocialhousing_11},]},
+            {label: '<img src="legend/IrisBrestMetropole_10.png" /> Iris Brest Metropole', layer: layer_IrisBrestMetropole_10},
+        {label: '<b>LISA - without social housing</b>', collapsed: true, selectAllCheckbox: true, children: [
+            {label: 'LISA Workers - without social housing<br /><table><tr><td style="text-align: center;"><img src="legend/LISAWorkerswithoutsocialhousing_9_HighHigh0.png" /></td><td>High-High</td></tr><tr><td style="text-align: center;"><img src="legend/LISAWorkerswithoutsocialhousing_9_LowHigh1.png" /></td><td>Low-High</td></tr><tr><td style="text-align: center;"><img src="legend/LISAWorkerswithoutsocialhousing_9_LowLow2.png" /></td><td>Low-Low</td></tr><tr><td style="text-align: center;"><img src="legend/LISAWorkerswithoutsocialhousing_9_Insignificant3.png" /></td><td>Insignificant</td></tr><tr><td style="text-align: center;"><img src="legend/LISAWorkerswithoutsocialhousing_9_Nodata4.png" /></td><td>No data</td></tr></table>', layer: layer_LISAWorkerswithoutsocialhousing_9},
+            {label: 'LISA Employes - without social housing<br /><table><tr><td style="text-align: center;"><img src="legend/LISAEmployeswithoutsocialhousing_8_HighHigh0.png" /></td><td>High-High</td></tr><tr><td style="text-align: center;"><img src="legend/LISAEmployeswithoutsocialhousing_8_HighLow1.png" /></td><td>High-Low</td></tr><tr><td style="text-align: center;"><img src="legend/LISAEmployeswithoutsocialhousing_8_Insignificant2.png" /></td><td>Insignificant</td></tr><tr><td style="text-align: center;"><img src="legend/LISAEmployeswithoutsocialhousing_8_LowLow3.png" /></td><td>Low-Low</td></tr><tr><td style="text-align: center;"><img src="legend/LISAEmployeswithoutsocialhousing_8_Nodata4.png" /></td><td>No data</td></tr></table>', layer: layer_LISAEmployeswithoutsocialhousing_8},
+            {label: 'LISA Managers - without social housing<br /><table><tr><td style="text-align: center;"><img src="legend/LISAManagerswithoutsocialhousing_7_HighHigh0.png" /></td><td>High-High</td></tr><tr><td style="text-align: center;"><img src="legend/LISAManagerswithoutsocialhousing_7_HighLow1.png" /></td><td>High-Low</td></tr><tr><td style="text-align: center;"><img src="legend/LISAManagerswithoutsocialhousing_7_Insignificant2.png" /></td><td>Insignificant</td></tr><tr><td style="text-align: center;"><img src="legend/LISAManagerswithoutsocialhousing_7_LowHigh3.png" /></td><td>Low-High</td></tr><tr><td style="text-align: center;"><img src="legend/LISAManagerswithoutsocialhousing_7_LowLow4.png" /></td><td>Low-Low</td></tr><tr><td style="text-align: center;"><img src="legend/LISAManagerswithoutsocialhousing_7_5.png" /></td><td></td></tr></table>', layer: layer_LISAManagerswithoutsocialhousing_7},]},
+        {label: '<b>LISA - with social housing</b>', collapsed: true, selectAllCheckbox: true, children: [
+            {label: 'LISA Workers - with social housing<br /><table><tr><td style="text-align: center;"><img src="legend/LISAWorkerswithsocialhousing_6_HighHigh0.png" /></td><td>High-High</td></tr><tr><td style="text-align: center;"><img src="legend/LISAWorkerswithsocialhousing_6_Insignificant1.png" /></td><td>Insignificant</td></tr><tr><td style="text-align: center;"><img src="legend/LISAWorkerswithsocialhousing_6_LowHigh2.png" /></td><td>Low-High</td></tr><tr><td style="text-align: center;"><img src="legend/LISAWorkerswithsocialhousing_6_LowLow3.png" /></td><td>Low-Low</td></tr><tr><td style="text-align: center;"><img src="legend/LISAWorkerswithsocialhousing_6_Nodata4.png" /></td><td>No data</td></tr></table>', layer: layer_LISAWorkerswithsocialhousing_6},
+            {label: 'LISA Employes - with social housing<br /><table><tr><td style="text-align: center;"><img src="legend/LISAEmployeswithsocialhousing_5_HighHigh0.png" /></td><td>High-High</td></tr><tr><td style="text-align: center;"><img src="legend/LISAEmployeswithsocialhousing_5_HighLow1.png" /></td><td>High-Low</td></tr><tr><td style="text-align: center;"><img src="legend/LISAEmployeswithsocialhousing_5_Insignificant2.png" /></td><td>Insignificant</td></tr><tr><td style="text-align: center;"><img src="legend/LISAEmployeswithsocialhousing_5_LowLow3.png" /></td><td>Low-Low</td></tr><tr><td style="text-align: center;"><img src="legend/LISAEmployeswithsocialhousing_5_Nodata4.png" /></td><td>No data</td></tr></table>', layer: layer_LISAEmployeswithsocialhousing_5},
+            {label: 'LISA Managers - with social housing<br /><table><tr><td style="text-align: center;"><img src="legend/LISAManagerswithsocialhousing_4_HighHigh0.png" /></td><td>High-High</td></tr><tr><td style="text-align: center;"><img src="legend/LISAManagerswithsocialhousing_4_HighLow1.png" /></td><td>High-Low</td></tr><tr><td style="text-align: center;"><img src="legend/LISAManagerswithsocialhousing_4_Insignificant2.png" /></td><td>Insignificant</td></tr><tr><td style="text-align: center;"><img src="legend/LISAManagerswithsocialhousing_4_LowHigh3.png" /></td><td>Low-High</td></tr><tr><td style="text-align: center;"><img src="legend/LISAManagerswithsocialhousing_4_LowLow4.png" /></td><td>Low-Low</td></tr><tr><td style="text-align: center;"><img src="legend/LISAManagerswithsocialhousing_4_Nodata5.png" /></td><td>No data</td></tr></table>', layer: layer_LISAManagerswithsocialhousing_4},]},
+            {label: "Google Satellite", layer: layer_GoogleSatellite_3},
+            {label: "OSM Standard", layer: layer_OSMStandard_2},
+            {label: "ESRI Gray (dark)", layer: layer_ESRIGraydark_1},
+            {label: "ESRI Gray (light)", layer: layer_ESRIGraylight_0},]
+        var lay = L.control.layers.tree(null, overlaysTree,{
+            //namedToggle: true,
+            //selectorBack: false,
+            //closedSymbol: '&#8862; &#x1f5c0;',
+            //openedSymbol: '&#8863; &#x1f5c1;',
+            //collapseAll: 'Collapse all',
+            //expandAll: 'Expand all',
+            collapsed: true,
+        });
+        lay.addTo(map);
+        map.on("zoomend", function(){
+
+                if (map.hasLayer(layer_Administrativeboundaries_20)) {
+                    if (map.getZoom() <= 19 && map.getZoom() >= 19) {
+                        layer_Administrativeboundaries_20.eachLayer(function (layer) {
+                            layer.openTooltip();
+                        });
+                    } else {
+                        layer_Administrativeboundaries_20.eachLayer(function (layer) {
+                            layer.closeTooltip();
+                        });
+                    }
+                }
+        });
+        setBounds();
+        var i = 0;
+        layer_Administrativeboundaries_20.eachLayer(function(layer) {
+            var context = {
+                feature: layer.feature,
+                variables: {}
+            };
+            layer.bindTooltip((layer.feature.properties['NOM'] !== null?String('<div style="color: #000000; font-size: 3pt; font-weight: bold; font-family: \'Arial Black\', sans-serif;">' + layer.feature.properties['NOM']) + '</div>':''), {permanent: true, offset: [-0, -16], className: 'css_Administrativeboundaries_20'});
+            labels.push(layer);
+            totalMarkers += 1;
+              layer.added = true;
+              addLabel(layer, i);
+              i++;
+        });
+                if (map.hasLayer(layer_Administrativeboundaries_20)) {
+                    if (map.getZoom() <= 19 && map.getZoom() >= 19) {
+                        layer_Administrativeboundaries_20.eachLayer(function (layer) {
+                            layer.openTooltip();
+                        });
+                    } else {
+                        layer_Administrativeboundaries_20.eachLayer(function (layer) {
+                            layer.closeTooltip();
+                        });
+                    }
+                }
+        resetLabels([layer_Administrativeboundaries_20]);
+        map.on("zoomend", function(){
+            resetLabels([layer_Administrativeboundaries_20]);
+        });
+        map.on("layeradd", function(){
+            resetLabels([layer_Administrativeboundaries_20]);
+        });
+        map.on("layerremove", function(){
+            resetLabels([layer_Administrativeboundaries_20]);
+        });
+        </script>        
+    </body>
+</html>
