@@ -56,3 +56,8 @@ Outils
 Le rapport PDF de l'étude est disponible dans les fichiers de ce dépôt.
 
 Mémoire du Master 1 - Géomatique et Modélisation Spatiale, Aix-Marseille Université.
+
+Cartes interactives
+
+Pour une meilleure lisibilité, l'ensemble des cartes produites dans le cadre de cette étude (Quotients de Localisation, LISA, etc.) est consultable à cette adresse :
+https://mo-soidridine.github.io/brest_metropole/ 
